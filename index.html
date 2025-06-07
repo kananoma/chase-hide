@@ -258,7 +258,7 @@
       const CLOAK_DURATION = 3
       const CLOAK_EVASION_CHANCE = 0.7
       const SNARE_TRAP_DURATION = 5 // 設置後の持続ターン数
-      const SNARE_TRAP_STUN_TURNS = 1 // モブの行動不能ターン数
+      const SNARE_TRAP_STUN_TURNS = 2 // モブの行動不能ターン数
       const MOB_SPAWN_CHANCE_PER_TURN = 1.0 // 毎ターン新しいモンスターが出現する確率 (90%)
 
       const MOB_STATS = {
@@ -324,7 +324,7 @@
         gameState.player.inventory = [
           { type: 'boots', quantity: 0, name: 'ダッシュブーツ', icon: 'B' },
           { type: 'cloak', quantity: 0, name: '隠れ蓑', icon: 'C' },
-          { type: 'snare_trap', quantity: 1, name: 'スネアトラップ', icon: 'S' }, // 初期アイテムとして1つ追加（テスト用）
+          { type: 'snare_trap', quantity: 0, name: 'スネアトラップ', icon: 'S' },
         ]
         gameState.player.remainingMovesThisTurn = 1
         gameState.player.cloakTurnsLeft = 0
@@ -922,8 +922,13 @@
           const distanceToPlayer = Axial.distance(mob.pos, gameState.player.pos)
 
           if (mob.stunnedTurns > 0) {
+            const wasStunned = true;
             mob.stunnedTurns--
-            mobMessages.push(`LV${mob.level}モンスターはスネアトラップで動けない (残り${mob.stunnedTurns}ターン)。`)
+            if (mob.stunnedTurns === 0 && wasStunned) {
+              mobMessages.push(`LV${mob.level}モンスターがスタンから回復した！`)
+            } else if (mob.stunnedTurns > 0) {
+              mobMessages.push(`LV${mob.level}モンスターはスネアトラップで動けない (残り${mob.stunnedTurns}ターン)。`)
+            }
             createOrUpdatePiece(mob, 'mob') // スタン状態の更新を視覚に反映
             return // このモブは行動不能
           }
