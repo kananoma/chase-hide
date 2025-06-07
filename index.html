@@ -271,10 +271,10 @@
 
       const MOB_LEVEL_SPAWN_PARAMS = {
         1: { baseAttractiveness: 200, scoreMultiplier: -0.2 }, // 初期に非常に優勢、スコア上昇で急激に減少
-        2: { baseAttractiveness: 80, scoreMultiplier: -0.1 },  // 初期に優勢、スコア上昇で緩やかに減少
-        3: { baseAttractiveness: 30, scoreMultiplier: 0.1 },   // 中盤から徐々に増加
-        4: { baseAttractiveness: 10, scoreMultiplier: 0.1 },   // スコアがある程度上がると出現率が大きく上昇
-        5: { baseAttractiveness: 2, scoreMultiplier: 0.2 },    // 高スコア帯での主力、初期は稀
+        2: { baseAttractiveness: 80, scoreMultiplier: -0.1 }, // 初期に優勢、スコア上昇で緩やかに減少
+        3: { baseAttractiveness: 30, scoreMultiplier: 0.1 }, // 中盤から徐々に増加
+        4: { baseAttractiveness: 10, scoreMultiplier: 0.2 }, // スコアがある程度上がると出現率が大きく上昇
+        5: { baseAttractiveness: 2, scoreMultiplier: 0.1 }, // 高スコア帯での主力、初期は稀
       }
 
       // --- DOM要素 ---
@@ -319,6 +319,9 @@
           isPlayerTurn: true,
           isGameOver: false,
           trapsOnBoard: [], // 設置されたトラップを管理
+          nextMobId: 0, // モブIDのカウンター
+          nextItemId: 0, // アイテムIDのカウンター
+          nextTrapId: 0, // トラップIDのカウンター
           isPlacingTrap: null, // トラップ設置モードの状態 (null or 'snare_trap')
         }
         gameState.player.inventory = [
@@ -667,7 +670,7 @@
 
         trapItem.quantity--
         const newTrap = {
-          id: `trap-${Date.now()}`,
+          id: `trap-${gameState.nextTrapId++}`,
           pos: { ...targetPos },
           type: trapType,
           el: null,
@@ -824,7 +827,7 @@
         const mobKey = candidateLocations[randomIndex]
         const [q, r] = mobKey.split(',').map(Number)
         const newMob = {
-          id: `mob-${Date.now()}`,
+          id: `mob-${gameState.nextMobId++}`,
           pos: { q, r },
           el: null,
           level: mobLevel,
@@ -856,7 +859,7 @@
         const itemKey = candidateLocations[randomIndex]
         const [q, r] = itemKey.split(',').map(Number)
         const newItem = {
-          id: `item-${Date.now()}`,
+          id: `item-${gameState.nextItemId++}`,
           pos: { q, r },
           el: null,
           type: ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)],
@@ -922,7 +925,7 @@
           const distanceToPlayer = Axial.distance(mob.pos, gameState.player.pos)
 
           if (mob.stunnedTurns > 0) {
-            const wasStunned = true;
+            const wasStunned = true
             mob.stunnedTurns--
             if (mob.stunnedTurns === 0 && wasStunned) {
               mobMessages.push(`LV${mob.level}モンスターがスタンから回復した！`)
