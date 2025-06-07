@@ -86,6 +86,19 @@
         z-index: 2;
       }
 
+      .hex.placeable-trap-highlight {
+        background-color: rgba(46, 204, 113, 0.4); /* 緑系のハイライト */
+      }
+
+      .trap-piece {
+        background-color: #95a5a6; /* 罠っぽい色 */
+        box-shadow: 0 0 8px #7f8c8d;
+        font-size: calc(var(--hex-size) * 0.5);
+        color: #2c3e50;
+        pointer-events: none; /* クリックイベントを透過させる */
+        /* piece共通スタイルを継承 */
+      }
+
       .hex.highlight {
         background-color: var(--highlight-color);
       }
@@ -112,7 +125,7 @@
         top: 0;
         left: 0;
         border-radius: 50%;
-        transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.3s ease; /* opacityもトランジション対象に */
         z-index: 5; /* 基本のz-index */
         display: flex;
         align-items: center;
@@ -236,9 +249,11 @@
     <script>
       // --- ゲーム設定 (グローバル定数からgameStateプロパティへ移行) ---
       const ITEM_SPAWN_CHANCE = 0.1
-      const ITEM_TYPES = ['boots', 'cloak']
+      const ITEM_TYPES = ['boots', 'cloak', 'snare_trap'] // スネアトラップを追加
       const CLOAK_DURATION = 3
       const CLOAK_EVASION_CHANCE = 0.7
+      const SNARE_TRAP_DURATION = 5 // 設置後の持続ターン数
+      const SNARE_TRAP_STUN_TURNS = 1 // モブの行動不能ターン数
       const MOB_SPAWN_CHANCE_PER_TURN = 1.0 // 毎ターン新しいモンスターが出現する確率 (90%)
 
       const MOB_STATS = {
@@ -290,10 +305,13 @@
           turn: 1,
           isPlayerTurn: true,
           isGameOver: false,
+          trapsOnBoard: [], // 設置されたトラップを管理
+          isPlacingTrap: null, // トラップ設置モードの状態 (null or 'snare_trap')
         }
         gameState.player.inventory = [
           { type: 'boots', quantity: 0, name: 'ダッシュブーツ', icon: 'B' },
           { type: 'cloak', quantity: 0, name: '隠れ蓑', icon: 'C' },
+          { type: 'snare_trap', quantity: 1, name: 'スネアトラップ', icon: 'S' }, // 初期アイテムとして1つ追加（テスト用）
         ]
         gameState.player.remainingMovesThisTurn = 1
         gameState.player.cloakTurnsLeft = 0
@@ -428,7 +446,8 @@
         createOrUpdatePiece(gameState.player, 'player')
         gameState.mobs.forEach((mob) => createOrUpdatePiece(mob, 'mob'))
         gameState.itemsOnBoard.forEach((item) => createOrUpdateItemPiece(item))
-        highlightValidMoves()
+        gameState.trapsOnBoard.forEach((trap) => createOrUpdateTrapPiece(trap))
+        updateHighlights()
       }
 
       function createOrUpdatePiece(pieceData, type) {
@@ -455,6 +474,13 @@
           }
           levelEl.textContent = pieceData.level
         }
+        // スタン状態の視覚的表現
+        if (type === 'mob' && pieceData.stunnedTurns > 0) {
+          pieceData.el.style.opacity = '0.5';
+        } else if (type === 'mob') {
+          pieceData.el.style.opacity = '1';
+        }
+
 
         const hexKey = `${pieceData.pos.q},${pieceData.pos.r}`
         const hexOnBoard = gameState.grid.get(hexKey)
@@ -480,6 +506,10 @@
           } else if (itemData.type === 'cloak') {
             itemData.el.textContent = 'C'
           }
+          // スネアトラップキットの表示
+          else if (itemData.type === 'snare_trap') {
+            itemData.el.textContent = 'S' // アイコンはインベントリと合わせる
+          }
           gameBoard.appendChild(itemData.el)
         }
 
@@ -493,10 +523,40 @@
         itemData.el.style.transform = `translate(${targetX}px, ${targetY}px)`
       }
 
+      function createOrUpdateTrapPiece(trapData) {
+        const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
+        const pieceSize = hexSize * 0.7
+
+        if (!trapData.el) {
+          trapData.el = document.createElement('div')
+          trapData.el.className = 'piece trap-piece' // 新しいCSSクラス
+          trapData.el.style.width = `${pieceSize}px`
+          trapData.el.style.height = `${pieceSize}px`
+          trapData.el.textContent = 'S' // スネアトラップのアイコン
+          gameBoard.appendChild(trapData.el)
+        }
+        const hexKey = `${trapData.pos.q},${trapData.pos.r}`
+        const hexOnBoard = gameState.grid.get(hexKey)
+        if (!hexOnBoard || !hexOnBoard.el) return
+
+        const hexEl = hexOnBoard.el
+        const targetX = hexEl.offsetLeft + hexEl.offsetWidth / 2 - pieceSize / 2
+        const targetY = hexEl.offsetTop + hexEl.offsetHeight / 2 - pieceSize / 2
+        trapData.el.style.transform = `translate(${targetX}px, ${targetY}px)`
+      }
+
       function onHexClick(q, r) {
         if (!gameState.isPlayerTurn) return
         const targetHex = { q, r }
-        if (Axial.distance(gameState.player.pos, targetHex) === 1) {
+
+        if (gameState.isPlacingTrap) {
+          const trapType = gameState.isPlacingTrap
+          if (canPlaceTrapAt(targetHex, trapType)) {
+            placeTrap(targetHex, trapType)
+          } else {
+            updateMessage('ここにはトラップを設置できません。', 'error')
+          }
+        } else if (Axial.distance(gameState.player.pos, targetHex) === 1) {
           movePlayer(targetHex)
         } else {
           updateMessage('隣接するマスにのみ移動できます。', 'error');
@@ -508,16 +568,33 @@
         messageEl.textContent = text;
         // TODO: typeに応じてmessageElのクラスを変更し、スタイルを適用する (例: messageEl.className = `message-area message-${type}`)
       }
-      function highlightValidMoves() {
+
+      function updateHighlights() {
         gameState.grid.forEach((hex) => {
           if (hex.el) {
             // hex.elが存在するか確認
             hex.el.classList.remove('highlight')
-            if (gameState.isPlayerTurn && Axial.distance(gameState.player.pos, hex) === 1) {
+            hex.el.classList.remove('placeable-trap-highlight')
+
+            if (gameState.isPlacingTrap) {
+              if (canPlaceTrapAt(hex, gameState.isPlacingTrap)) {
+                hex.el.classList.add('placeable-trap-highlight')
+              }
+            } else if (gameState.isPlayerTurn && Axial.distance(gameState.player.pos, hex) === 1) {
               hex.el.classList.add('highlight')
             }
           }
         })
+      }
+
+      function canPlaceTrapAt(hexPos, trapType) {
+        if (Axial.distance(gameState.player.pos, hexPos) !== 1) return false // 隣接マスのみ
+        const hexKey = `${hexPos.q},${hexPos.r}`
+        if (!gameState.grid.has(hexKey)) return false // グリッド外
+        if (gameState.mobs.some(m => m.pos.q === hexPos.q && m.pos.r === hexPos.r)) return false // モブがいる
+        if (gameState.itemsOnBoard.some(i => i.pos.q === hexPos.q && i.pos.r === hexPos.r)) return false // アイテムがある
+        if (gameState.trapsOnBoard.some(t => t.pos.q === hexPos.q && t.pos.r === hexPos.r)) return false // 既にトラップがある
+        return true
       }
 
       function onHexMouseEnter(hexData) {
@@ -550,7 +627,40 @@
             hex.el.classList.remove('detection-highlight')
           }
         })
-        if (gameState.isPlayerTurn) highlightValidMoves()
+        if (gameState.isPlayerTurn) updateHighlights()
+      }
+
+      function startPlacingTrap(trapType) {
+        if (!gameState.isPlayerTurn || gameState.isPlacingTrap) return;
+        const trapItem = gameState.player.inventory.find(item => item.type === trapType);
+        if (trapItem && trapItem.quantity > 0) {
+          gameState.isPlacingTrap = trapType;
+          updateMessage(`${trapItem.name}を設置する場所を選んでください。`, 'info');
+          updateHighlights();
+          updateInventoryUI(); // ボタンの状態を更新
+        }
+      }
+
+      function placeTrap(targetPos, trapType) {
+        const trapItem = gameState.player.inventory.find(item => item.type === trapType);
+        if (!trapItem || trapItem.quantity <= 0) return;
+
+        trapItem.quantity--;
+        const newTrap = {
+          id: `trap-${Date.now()}`,
+          pos: { ...targetPos },
+          type: trapType,
+          el: null,
+          turnsLeft: SNARE_TRAP_DURATION, // スネアトラップの場合
+          triggered: false,
+        };
+        gameState.trapsOnBoard.push(newTrap);
+        createOrUpdateTrapPiece(newTrap);
+
+        gameState.isPlacingTrap = null;
+        gameState.player.remainingMovesThisTurn = 0; // 設置は1アクション消費
+        updateMessage(`${trapItem.name}を設置しました。モンスターのターン...`, 'info');
+        endPlayerTurn();
       }
 
       function movePlayer(targetPos) {
@@ -575,14 +685,10 @@
 
         if (gameState.player.remainingMovesThisTurn > 0) {
           updateMessage('続けて移動できます。');
-          gameState.isPlayerTurn = true
-          highlightValidMoves()
-          clearDetectionHighlights()
+          updateHighlights();
         } else {
           updateMessage('モンスターのターン...');
           gameState.isPlayerTurn = false
-          highlightValidMoves()
-          clearDetectionHighlights()
 
           if (gameState.player.cloakTurnsLeft > 0) {
             gameState.player.cloakTurnsLeft--
@@ -591,8 +697,14 @@
             }
           }
           updateInventoryUI()
-          setTimeout(mobsTurn, 500)
+          endPlayerTurn();
         }
+      }
+
+      function endPlayerTurn() {
+        updateHighlights(); // ハイライトをクリア
+        clearDetectionHighlights();
+        setTimeout(mobsTurn, 500);
       }
 
       function pickUpItem(itemIndex) {
@@ -661,6 +773,9 @@
       function spawnNewMob(isInitial = false) {
         const occupiedKeys = new Set([`${gameState.player.pos.q},${gameState.player.pos.r}`])
         gameState.mobs.forEach((m) => occupiedKeys.add(`${m.pos.q},${m.pos.r}`))
+        gameState.itemsOnBoard.forEach((i) => occupiedKeys.add(`${i.pos.q},${i.pos.r}`))
+        gameState.trapsOnBoard.forEach((t) => occupiedKeys.add(`${t.pos.q},${t.pos.r}`)) // トラップのある場所も占有扱い
+
         let allEmptyHexes = Array.from(gameState.grid.keys()).filter((k) => !occupiedKeys.has(k))
 
         let candidateLocations = allEmptyHexes.filter((key) => {
@@ -692,6 +807,7 @@
           pos: { q, r },
           el: null,
           level: mobLevel,
+          stunnedTurns: 0, // スタン状態の残りターン
         }
         gameState.mobs.push(newMob)
 
@@ -704,6 +820,7 @@
         const occupiedKeys = new Set([`${gameState.player.pos.q},${gameState.player.pos.r}`])
         gameState.mobs.forEach((m) => occupiedKeys.add(`${m.pos.q},${m.pos.r}`))
         gameState.itemsOnBoard.forEach((i) => occupiedKeys.add(`${i.pos.q},${i.pos.r}`))
+        gameState.trapsOnBoard.forEach((t) => occupiedKeys.add(`${t.pos.q},${t.pos.r}`)) // トラップのある場所も占有扱い
 
         let allEmptyHexes = Array.from(gameState.grid.keys()).filter((k) => !occupiedKeys.has(k))
         let candidateLocations = allEmptyHexes.filter((key) => {
@@ -728,7 +845,7 @@
       }
 
       function useBootsItem() {
-        if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.remainingMovesThisTurn > 1) return
+        if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.remainingMovesThisTurn > 1 || gameState.isPlacingTrap) return
         const boots = gameState.player.inventory.find((item) => item.type === 'boots')
         if (boots && boots.quantity > 0) {
           boots.quantity--
@@ -739,7 +856,7 @@
       }
 
       function useCloakItem() {
-        if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.cloakTurnsLeft > 0) return
+        if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.cloakTurnsLeft > 0 || gameState.isPlacingTrap) return
         const cloak = gameState.player.inventory.find((item) => item.type === 'cloak')
         if (cloak && cloak.quantity > 0) {
           cloak.quantity--
@@ -749,13 +866,33 @@
         }
       }
 
+      function useSnareTrapItem() {
+        if (gameState.isGameOver || !gameState.isPlayerTurn) return;
+        if (gameState.isPlacingTrap) { // 設置モード中に再度押されたらキャンセル
+          gameState.isPlacingTrap = null;
+          updateMessage('トラップ設置をキャンセルしました。', 'info');
+          updateHighlights();
+          updateInventoryUI();
+        } else {
+          startPlacingTrap('snare_trap');
+        }
+      }
+
       function mobsTurn() {
         if (gameState.isGameOver) return
         let isGameOver = false
+        let mobMessages = []; // モブの行動に関するメッセージを一時的に保存
 
         gameState.mobs.forEach((mob) => {
           const stats = MOB_STATS[mob.level]
           const distanceToPlayer = Axial.distance(mob.pos, gameState.player.pos)
+
+          if (mob.stunnedTurns > 0) {
+            mob.stunnedTurns--;
+            mobMessages.push(`LV${mob.level}モンスターはスネアトラップで動けない (残り${mob.stunnedTurns}ターン)。`);
+            createOrUpdatePiece(mob, 'mob'); // スタン状態の更新を視覚に反映
+            return; // このモブは行動不能
+          }
           let bestMove = mob.pos
           let canDetectPlayer = true
           if (gameState.player.cloakTurnsLeft > 0 && Math.random() < CLOAK_EVASION_CHANCE) {
@@ -768,7 +905,7 @@
             for (const neighbor of neighbors) {
               if (
                 gameState.grid.has(`${neighbor.q},${neighbor.r}`) &&
-                !gameState.mobs.some((m) => m.pos.q === neighbor.q && m.pos.r === neighbor.r)
+                !gameState.mobs.some((m) => m.pos.q === neighbor.q && m.pos.r === neighbor.r && m.id !== mob.id) // 他のモブがいない
               ) {
                 const d = Axial.distance(neighbor, gameState.player.pos)
                 if (d < minDistance) { // より近いマスが見つかった場合
@@ -788,19 +925,42 @@
             const neighbors = Axial.neighbors(mob.pos)
             const validMoves = neighbors.filter(
               (n) =>
-                gameState.grid.has(`${n.q},${n.r}`) && !gameState.mobs.some((m) => m.pos.q === n.q && m.pos.r === n.r)
+                gameState.grid.has(`${n.q},${n.r}`) && !gameState.mobs.some((m) => m.pos.q === n.q && m.pos.r === n.r && m.id !== mob.id)
             )
             if (validMoves.length > 0) {
               bestMove = validMoves[Math.floor(Math.random() * validMoves.length)]
             }
           }
-          mob.pos = bestMove
-          createOrUpdatePiece(mob, 'mob')
+
+          // まずモブを移動させる
+          const previousPos = { ...mob.pos };
+          mob.pos = bestMove;
+
+          // 移動後に、現在の位置にトラップがあるか確認
+          const trapIndexOnCurrentHex = gameState.trapsOnBoard.findIndex(
+            (trap) => trap.pos.q === mob.pos.q && trap.pos.r === mob.pos.r && !trap.triggered && trap.type === 'snare_trap'
+          );
+
+          if (trapIndexOnCurrentHex !== -1 && (mob.pos.q !== previousPos.q || mob.pos.r !== previousPos.r)) { // 実際に移動した場合のみトラップ作動
+            const trap = gameState.trapsOnBoard[trapIndexOnCurrentHex];
+            trap.triggered = true; // 作動済みにする
+            mob.stunnedTurns = SNARE_TRAP_STUN_TURNS;
+            mobMessages.push(`LV${mob.level}モンスターが (${mob.pos.q},${mob.pos.r}) のスネアトラップにかかり動けなくなった！ (${SNARE_TRAP_STUN_TURNS}ターン行動不能)`);
+            // トラップは作動後すぐに消滅させる
+            if (trap.el && trap.el.parentNode === gameBoard) {
+              gameBoard.removeChild(trap.el);
+            }
+            gameState.trapsOnBoard.splice(trapIndexOnCurrentHex, 1);
+          }
+
+          createOrUpdatePiece(mob, 'mob'); // 移動とスタン状態を視覚に反映
+
           if (Axial.distance(mob.pos, gameState.player.pos) === 0) isGameOver = true
         })
 
         if (isGameOver) {
           setTimeout(endGame, 300)
+          updateInventoryUI(); // ゲームオーバー時にボタンを無効化
           return
         }
 
@@ -808,7 +968,7 @@
           spawnItem()
           // ★毎ターン終了時に確率で新しいモンスターをスポーン
           const mobCount = gameState.mobs.length;
-          const maxCapacity = gameState.maxMobCapacity || 10; // gameStateにmaxMobCapacityがなければデフォルト10
+          const maxCapacity = gameState.maxMobCapacity || Math.max(5, Math.floor(gameState.gridRadius * 2)); // マップサイズに応じた最大モブ数
           const occupancyRate = Math.min(1.0, mobCount / maxCapacity); // 0.0 ~ 1.0
 
           const exponent = 2; // この値を調整することで変化の度合いを変える (例: 1, 1.5, 2, 3)
@@ -820,18 +980,43 @@
             spawnNewMob();
           }
 
+          // トラップの持続時間処理
+          let trapMessages = [];
+          gameState.trapsOnBoard = gameState.trapsOnBoard.filter(trap => {
+            if (trap.triggered) return false; // 作動済みのトラップはここで除去（mobsTurn内で除去済みだが念のため）
+            trap.turnsLeft--;
+            if (trap.turnsLeft <= 0) {
+              if (trap.el && trap.el.parentNode === gameBoard) {
+                gameBoard.removeChild(trap.el);
+              }
+              trapMessages.push(`${trap.type === 'snare_trap' ? 'スネアトラップ' : 'トラップ'}の効果が切れた。`);
+              return false; // 配列から削除
+            }
+            return true;
+          });
+
           gameState.turn++
           gameState.isPlayerTurn = true
           gameState.player.remainingMovesThisTurn = 1
           updateInfo()
           updateInventoryUI()
-          highlightValidMoves()
-          clearDetectionHighlights()
-          if (gameState.player.cloakTurnsLeft > 0) {
-            updateMessage(`あなたのターンです。(隠れ蓑効果: 残り${gameState.player.cloakTurnsLeft}ターン)`);
-          } else { // このメッセージは「ヘクス」を含んでいないので変更なし
-            updateMessage('あなたのターンです。移動したいマスを選択してください。');
+          updateHighlights()
+          // clearDetectionHighlights() // updateHighlights内で処理される
+
+          let turnEndMessage = '';
+          if (mobMessages.length > 0) {
+            turnEndMessage += mobMessages.join(' ') + ' ';
           }
+          if (trapMessages.length > 0) {
+            turnEndMessage += trapMessages.join(' ') + ' ';
+          }
+
+          if (gameState.player.cloakTurnsLeft > 0) {
+            turnEndMessage += `あなたのターンです。(隠れ蓑効果: 残り${gameState.player.cloakTurnsLeft}ターン)`;
+          } else {
+            turnEndMessage += 'あなたのターンです。移動したいマスを選択してください。';
+          }
+          updateMessage(turnEndMessage.trim());
         }
       }
 
@@ -844,8 +1029,10 @@
             // hex.elが存在するか確認
             hex.el.classList.remove('highlight')
             hex.el.classList.remove('detection-highlight')
+            hex.el.classList.remove('placeable-trap-highlight')
           }
         })
+        updateInventoryUI(); // ボタンを無効化
       }
 
       function updateInfo() {
@@ -877,18 +1064,31 @@
             if (item.type === 'boots') {
               const useButton = document.createElement('button')
               useButton.textContent = '使用'
+              useButton.title = `${item.name}を使用する`
               useButton.onclick = useBootsItem
               inventoryArea.appendChild(useButton)
-              if (!gameState.isPlayerTurn || gameState.player.remainingMovesThisTurn > 1 || item.quantity === 0) {
+              if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.remainingMovesThisTurn > 1 || item.quantity === 0 || gameState.isPlacingTrap) {
                 useButton.disabled = true
               }
             } else if (item.type === 'cloak') {
               const useButton = document.createElement('button')
               useButton.textContent = '使用'
+              useButton.title = `${item.name}を使用する`
               useButton.onclick = useCloakItem
               inventoryArea.appendChild(useButton)
-              if (!gameState.isPlayerTurn || gameState.player.cloakTurnsLeft > 0 || item.quantity === 0) {
+              if (gameState.isGameOver || !gameState.isPlayerTurn || gameState.player.cloakTurnsLeft > 0 || item.quantity === 0 || gameState.isPlacingTrap) {
                 useButton.disabled = true
+              }
+            } else if (item.type === 'snare_trap') {
+              const useButton = document.createElement('button');
+              useButton.textContent = gameState.isPlacingTrap === 'snare_trap' ? 'キャンセル' : '設置';
+              useButton.title = gameState.isPlacingTrap === 'snare_trap' ? 'スネアトラップの設置をキャンセル' : `${item.name}を設置する`;
+              useButton.onclick = useSnareTrapItem;
+              inventoryArea.appendChild(useButton);
+              if (gameState.isGameOver || !gameState.isPlayerTurn || item.quantity === 0) {
+                if (gameState.isPlacingTrap !== 'snare_trap') { // キャンセルボタンは有効にする
+                    useButton.disabled = true;
+                }
               }
             }
           }
