@@ -337,7 +337,7 @@
         const radiusRatio = Math.max(0.5, selectedRadius / baseRadiusForBalance)
 
         gameState.initialMobs = Math.max(2, Math.floor(4 * radiusRatio))
-        gameState.minSpawnDistance = Math.max(2, Math.floor(3 * radiusRatio))
+        gameState.minSpawnDistance = Math.max(3, Math.floor(3 * radiusRatio)) // 最小スポーン距離の下限を3に調整
         gameState.minSpawnDistanceFromOtherMobs = Math.max(1, Math.floor(2 * radiusRatio))
         gameState.maxItemsOnBoard = Math.max(1, Math.floor(3 * radiusRatio))
         gameState.minItemSpawnDistanceFromPlayer = Math.max(1, Math.floor(2 * radiusRatio))
