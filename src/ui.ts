@@ -16,6 +16,24 @@ export const mapSizeSelector = document.getElementById('map-size-selector') as H
 
 // --- UI更新関数 ---
 
+function applyTransform(el: HTMLElement, pos: AxialCoord, size: number, isVisible: boolean): void {
+  const hexKey = `${pos.q},${pos.r}`;
+  const hexOnBoard = gameState.grid.get(hexKey);
+  if (!hexOnBoard || !hexOnBoard.el) {
+    // もし対応するヘクスがなければ非表示にする
+    el.style.opacity = '0';
+    el.style.transform = 'scale(0)';
+    return;
+  }
+  
+  const hexEl = hexOnBoard.el;
+  const targetX = hexEl.offsetLeft + hexEl.offsetWidth / 2 - size / 2;
+  const targetY = hexEl.offsetTop + hexEl.offsetHeight / 2 - size / 2;
+  const scale = isVisible ? 1 : 0;
+  
+  el.style.transform = `translate(${targetX}px, ${targetY}px) scale(${scale})`;
+}
+
 export function updateMessage(text: string, type: 'info' | 'error' | 'success' | 'warning' | 'gameover' = 'info'): void {
   messageEl.textContent = text
   messageEl.className = `message-area message-${type}`
@@ -61,87 +79,99 @@ export function clearDetectionHighlights(): void {
 
 
 export function createOrUpdatePiece(pieceData: Player | Mob, type: 'player' | 'mob'): void {
-    const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
-    const pieceSize = hexSize * 0.8
+  const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'));
+  const pieceSize = hexSize * 0.8;
+
+  if (!pieceData.el) {
+    // --- 新規作成 ---
+    const el = document.createElement('div');
+    el.className = `piece ${type}`;
+    el.style.width = `${pieceSize}px`;
+    el.style.height = `${pieceSize}px`;
+    pieceData.el = el;
+    gameBoard.appendChild(el);
+
+    // 見えない状態で正しい位置に配置
+    applyTransform(el, pieceData.pos, pieceSize, false);
+
+    // 次のフレームで表示状態にする
+    requestAnimationFrame(() => {
+      el.classList.add('is-visible');
+      applyTransform(el, pieceData.pos, pieceSize, true);
+    });
+  } else {
+    // --- 更新 ---
+    applyTransform(pieceData.el, pieceData.pos, pieceSize, true);
+  }
   
-    if (!pieceData.el) {
-      pieceData.el = document.createElement('div')
-      pieceData.el.className = `piece ${type}`
-      pieceData.el.style.width = `${pieceSize}px`
-      pieceData.el.style.height = `${pieceSize}px`
-      gameBoard.appendChild(pieceData.el)
+  if (type === 'mob' && 'level' in pieceData) {
+    const mob = pieceData as Mob;
+    const stats = MOB_STATS[mob.level];
+    mob.el!.style.backgroundColor = stats.color;
+
+    let levelEl = mob.el!.querySelector('.mob-level') as HTMLSpanElement;
+    if (!levelEl) {
+      levelEl = document.createElement('span');
+      levelEl.className = 'mob-level';
+      mob.el!.appendChild(levelEl);
     }
-  
-    if (type === 'mob' && 'level' in pieceData) {
-      const mob = pieceData as Mob
-      const stats = MOB_STATS[mob.level]
-      mob.el!.style.backgroundColor = stats.color
-  
-      let levelEl = mob.el!.querySelector('.mob-level') as HTMLSpanElement
-      if (!levelEl) {
-        levelEl = document.createElement('span')
-        levelEl.className = 'mob-level'
-        mob.el!.appendChild(levelEl)
-      }
-      levelEl.textContent = mob.level.toString()
-      mob.el!.style.opacity = mob.stunnedTurns > 0 ? '0.5' : '1'
+    levelEl.textContent = mob.level.toString();
+    // スタン状態は transform とは別に opacity を直接上書き
+    if(mob.stunnedTurns > 0) {
+        mob.el!.style.opacity = '0.5';
+    } else {
+        mob.el!.style.opacity = '1';
     }
-  
-    const hexKey = `${pieceData.pos.q},${pieceData.pos.r}`
-    const hexOnBoard = gameState.grid.get(hexKey)
-    if (!hexOnBoard || !hexOnBoard.el) return
-  
-    const hexEl = hexOnBoard.el
-    const targetX = hexEl.offsetLeft + hexEl.offsetWidth / 2 - pieceSize / 2
-    const targetY = hexEl.offsetTop + hexEl.offsetHeight / 2 - pieceSize / 2
-    pieceData.el!.style.transform = `translate(${targetX}px, ${targetY}px)`
+  }
 }
   
 export function createOrUpdateItemPiece(itemData: ItemOnBoard): void {
-    const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
-    const pieceSize = hexSize * 0.7
-  
-    if (!itemData.el) {
-      itemData.el = document.createElement('div')
-      itemData.el.className = 'piece item-piece'
-      itemData.el.style.width = `${pieceSize}px`
-      itemData.el.style.height = `${pieceSize}px`
-      if (itemData.type === 'boots') itemData.el.textContent = 'B'
-      else if (itemData.type === 'cloak') itemData.el.textContent = 'C'
-      else if (itemData.type === 'snare_trap') itemData.el.textContent = 'S'
-      gameBoard.appendChild(itemData.el)
-    }
-  
-    const hexKey = `${itemData.pos.q},${itemData.pos.r}`
-    const hexOnBoard = gameState.grid.get(hexKey)
-    if (!hexOnBoard || !hexOnBoard.el) return
-  
-    const hexEl = hexOnBoard.el
-    const targetX = hexEl.offsetLeft + hexEl.offsetWidth / 2 - pieceSize / 2
-    const targetY = hexEl.offsetTop + hexEl.offsetHeight / 2 - pieceSize / 2
-    itemData.el.style.transform = `translate(${targetX}px, ${targetY}px)`
+  const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'));
+  const pieceSize = hexSize * 0.7;
+
+  if (!itemData.el) {
+    const el = document.createElement('div');
+    el.className = 'piece item-piece';
+    el.style.width = `${pieceSize}px`;
+    el.style.height = `${pieceSize}px`;
+
+    if (itemData.type === 'boots') el.textContent = 'B';
+    else if (itemData.type === 'cloak') el.textContent = 'C';
+    else if (itemData.type === 'snare_trap') el.textContent = 'S';
+    
+    itemData.el = el;
+    gameBoard.appendChild(el);
+
+    applyTransform(el, itemData.pos, pieceSize, false);
+
+    requestAnimationFrame(() => {
+      el.classList.add('is-visible');
+      applyTransform(el, itemData.pos, pieceSize, true);
+    });
+  }
 }
   
 export function createOrUpdateTrapPiece(trapData: TrapOnBoard): void {
-    const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
-    const pieceSize = hexSize * 0.7
-  
-    if (!trapData.el) {
-      trapData.el = document.createElement('div')
-      trapData.el.className = 'piece trap-piece'
-      trapData.el.style.width = `${pieceSize}px`
-      trapData.el.style.height = `${pieceSize}px`
-      trapData.el.textContent = 'S'
-      gameBoard.appendChild(trapData.el)
-    }
-    const hexKey = `${trapData.pos.q},${trapData.pos.r}`
-    const hexOnBoard = gameState.grid.get(hexKey)
-    if (!hexOnBoard || !hexOnBoard.el) return
-  
-    const hexEl = hexOnBoard.el
-    const targetX = hexEl.offsetLeft + hexEl.offsetWidth / 2 - pieceSize / 2
-    const targetY = hexEl.offsetTop + hexEl.offsetHeight / 2 - pieceSize / 2
-    trapData.el.style.transform = `translate(${targetX}px, ${targetY}px)`
+  const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'));
+  const pieceSize = hexSize * 0.7;
+
+  if (!trapData.el) {
+    const el = document.createElement('div');
+    el.className = 'piece trap-piece';
+    el.style.width = `${pieceSize}px`;
+    el.style.height = `${pieceSize}px`;
+    el.textContent = 'S';
+
+    trapData.el = el;
+    gameBoard.appendChild(el);
+
+    applyTransform(el, trapData.pos, pieceSize, false);
+
+    requestAnimationFrame(() => {
+      el.classList.add('is-visible');
+      applyTransform(el, trapData.pos, pieceSize, true);
+    });
+  }
 }
 
 export function drawBoard(): void {

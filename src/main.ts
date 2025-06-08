@@ -49,9 +49,9 @@ function initGame(selectedRadius: number): void {
   const totalHexes = 3 * selectedRadius * (selectedRadius + 1) + 1
   initialState.maxItemsOnBoard = Math.max(1, Math.round(totalHexes / HEXES_PER_ITEM))
   initialState.minItemSpawnDistanceFromPlayer = Math.max(1, Math.floor(2 * radiusRatio))
-  initialState.initialMobs = Math.max(2, Math.round(totalHexes / HEXES_PER_INITIAL_MOB));
-  initialState.maxMobCapacity = Math.max(5, Math.round(totalHexes / HEXES_PER_MAX_MOB));
-  
+  initialState.initialMobs = Math.max(2, Math.round(totalHexes / HEXES_PER_INITIAL_MOB))
+  initialState.maxMobCapacity = Math.max(5, Math.round(totalHexes / HEXES_PER_MAX_MOB))
+
   let newHexSize = 40
   if (selectedRadius >= 7) newHexSize = 30
   else if (selectedRadius >= 6) newHexSize = 35
@@ -73,6 +73,9 @@ function initGame(selectedRadius: number): void {
     const currentHexSizeStyle = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
     if (Math.abs(currentHexSizeStyle - newHexSize) < 0.1) {
       drawBoard()
+      if (initialState.player.el) {
+        initialState.player.el.classList.add('is-visible')
+      }
       updateInfo()
       updateInventoryUI()
       updateMessage('あなたのターンです。移動したいマスを選択してください。')
