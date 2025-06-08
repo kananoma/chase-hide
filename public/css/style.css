@@ -1,0 +1,216 @@
+:root {
+  --hex-size: 40px;
+  --board-bg: #f0f0f0;
+  --hex-bg: #ffffff;
+  --player-color: #3498db;
+  /* mobの色はJSで設定 */
+  --highlight-color: rgba(52, 152, 219, 0.3);
+  --font-family: 'Inter', 'Noto Sans JP', sans-serif;
+}
+
+body {
+  font-family: var(--font-family);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  padding: 5px 0;
+  background-color: #e9ebee;
+  color: #333;
+}
+
+.game-container {
+  display: flex; /* 最初から表示 */
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: white;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+  width: 95%;
+  max-width: 1200px;
+  /* min-height はJSで調整 */
+}
+
+.game-info {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  width: 100%;
+  gap: 10px;
+  margin-bottom: 0;
+  font-size: 1.2em;
+  font-weight: bold;
+  text-align: center;
+}
+
+.info-box {
+  background-color: #f8f9fa;
+  padding: 10px 20px;
+  border-radius: 12px;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+#game-board {
+  position: relative;
+  background-color: var(--board-bg);
+  border-radius: 12px;
+  overflow: hidden; /* はみ出たヘクスを隠す */
+  /* transform: scale() はJSで動的に設定 */
+  margin: 0 auto; /* 中央寄せにしつつ、上下マージンは0 */
+}
+
+.hex {
+  position: absolute;
+  width: calc(var(--hex-size) * 2);
+  height: calc(var(--hex-size) * 2 * 0.866);
+  background-color: var(--hex-bg);
+  clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.hex:hover {
+  transform: scale(1.05);
+  z-index: 2;
+}
+
+.hex.placeable-trap-highlight {
+  background-color: rgba(46, 204, 113, 0.4); /* 緑系のハイライト */
+}
+
+.trap-piece {
+  background-color: #95a5a6; /* 罠っぽい色 */
+  box-shadow: 0 0 8px #7f8c8d;
+  font-size: calc(var(--hex-size) * 0.5);
+  color: #2c3e50;
+  pointer-events: none; /* クリックイベントを透過させる */
+  /* piece共通スタイルを継承 */
+}
+
+.hex.highlight {
+  background-color: var(--highlight-color);
+}
+
+.hex.detection-highlight {
+  background-color: rgba(255, 165, 0, 0.3);
+}
+
+.item-piece {
+  background-color: #2ecc71;
+  box-shadow: 0 0 8px #2ecc71;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  font-size: calc(var(--hex-size) * 0.5);
+  pointer-events: none;
+  /* z-index は piece 共通で設定し、mobで上書き */
+}
+
+.piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55), opacity 0.3s ease; /* opacityもトランジション対象に */
+  z-index: 5; /* 基本のz-index */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.player {
+  background-color: var(--player-color);
+  box-shadow: 0 0 10px var(--player-color);
+  pointer-events: none;
+}
+
+.mob {
+  pointer-events: none;
+  z-index: 6; /* アイテムより手前に表示 */
+}
+
+.mob-level {
+  color: white;
+  font-size: calc(var(--hex-size) * 0.4);
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.message-area {
+  height: auto;
+  line-height: 1.2;
+  font-size: 1em;
+  color: #555;
+  font-weight: 500;
+  text-align: center;
+}
+
+button {
+  background-color: var(--player-color);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+button:hover {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+}
+
+button:disabled {
+  background-color: #bdc3c7;
+  color: #7f8c8d;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+.inventory-area {
+  display: flex;
+  gap: 15px;
+  align-items: center;
+  margin-top: 5px;
+  padding: 10px;
+  background-color: #f0f0f0;
+  border-radius: 8px;
+}
+.inventory-item {
+  font-weight: 500;
+}
+.item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--hex-size) * 0.6);
+  height: calc(var(--hex-size) * 0.6);
+  background-color: #2ecc71;
+  color: white;
+  font-weight: bold;
+  border-radius: 50%;
+  font-size: calc(var(--hex-size) * 0.4);
+  margin-right: 5px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* 元のHTMLの<style>タグにあったスタイルをこちらに統合 */
+h1 {
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+.game-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-top: 10px;
+}
