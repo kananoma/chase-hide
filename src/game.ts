@@ -403,12 +403,17 @@ function mobsTurn(): void {
     spawnItem()
 
     const mobCount = gameState.mobs.length
+    const totalHexes = gameState.totalHexes ?? 1 // totalHexes が未定義なら 1 を使う
     const maxCapacity = gameState.maxMobCapacity || Math.max(5, Math.floor(gameState.gridRadius * 2))
     const occupancyRate = Math.min(1.0, mobCount / maxCapacity)
     const exponent = 2
     let dynamicSpawnChance = MOB_SPAWN_CHANCE_PER_TURN * Math.pow(1 - occupancyRate, exponent)
 
-    if (Math.random() < Math.max(MIN_SPAWN_CHANCE, Math.min(MAX_SPAWN_CHANCE, dynamicSpawnChance))) {
+    // 最終的なスポーン確率を計算
+    const finalSpawnChance = Math.max(MIN_SPAWN_CHANCE, Math.min(MAX_SPAWN_CHANCE, dynamicSpawnChance))
+
+    // 計算した最終確率でスポーン判定を行う
+    if (Math.random() < finalSpawnChance) {
       spawnNewMob()
     }
 
@@ -437,6 +442,19 @@ function mobsTurn(): void {
     updateInfo()
     updateInventoryUI()
     updateHighlights()
+
+    // デバッグ情報出力のコード
+    console.log(`--- Turn ${gameState.turn - 1} End ---`) // これから始まるターンではなく、終了したターンとして表示
+    console.log(`Score: ${gameState.score}`)
+    console.log(`Mob Count: ${mobCount} / ${maxCapacity} (${(occupancyRate * 100).toFixed(1)}%)`)
+    // 敵が0体の場合のゼロ除算を避ける
+    if (mobCount > 0) {
+      console.log(`Current Mob Density: 1体あたり約 ${(totalHexes / mobCount).toFixed(1)} マス`)
+    } else {
+      console.log(`Current Mob Density: (No Mobs)`)
+    }
+    console.log(`Next Mob Spawn Chance: ${(finalSpawnChance * 100).toFixed(1)}%`)
+    console.log('-----------------------')
 
     let turnEndMessage = [...mobMessages, ...trapMessages].join(' ')
     if (gameState.player.cloakTurnsLeft > 0) {

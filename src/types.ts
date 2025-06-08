@@ -52,6 +52,7 @@ export interface Mob {
 export interface GameState {
   gridRadius: number
   grid: Map<string, HexData>
+  totalHexes?: number
   player: Player
   mobs: Mob[]
   itemsOnBoard: ItemOnBoard[]
