@@ -6,19 +6,45 @@ import { Axial } from './utils'
 
 // --- DOM要素 ---
 export const gameBoard = document.getElementById('game-board') as HTMLDivElement
-export const scoreEl = document.getElementById('score') as HTMLSpanElement
-export const turnEl = document.getElementById('turn') as HTMLSpanElement
 export const messageEl = document.getElementById('message-area') as HTMLDivElement
 export const restartButton = document.getElementById('restart-button') as HTMLButtonElement
 export const inventoryArea = document.getElementById('inventory-area') as HTMLDivElement
 export const gameContainerEl = document.querySelector('.game-container') as HTMLDivElement
 export const mapSizeSelector = document.getElementById('map-size-selector') as HTMLSelectElement
 export const dangerToggle = document.getElementById('danger-toggle') as HTMLInputElement
+
 // --- UI更新関数 ---
+
+/**
+ * ゲーム盤の上にスコアとターンを表示するオーバーレイ要素を作成・追加する
+ */
+export function createBoardOverlay(): void {
+  // 既に存在すれば何もしない（リセット時の重複作成を防ぐ）
+  if (document.getElementById('board-overlay')) return
+
+  const overlayContainer = document.createElement('div')
+  overlayContainer.id = 'board-overlay'
+
+  const scoreDisplay = document.createElement('div')
+  scoreDisplay.className = 'board-info board-info-score'
+  scoreDisplay.innerHTML = 'スコア: <span id="board-score">0</span>'
+
+  const turnDisplay = document.createElement('div')
+  turnDisplay.className = 'board-info board-info-turn'
+  turnDisplay.innerHTML = 'ターン: <span id="board-turn">1</span>'
+
+  overlayContainer.appendChild(scoreDisplay)
+  overlayContainer.appendChild(turnDisplay)
+
+  gameBoard.appendChild(overlayContainer)
+}
 
 export function drawBoard(): void {
   // 盤面をクリア
   gameBoard.innerHTML = ''
+
+  // オーバーレイを（再）生成する
+  createBoardOverlay()
 
   // ヘクスの基本サイズを取得
   const hexSize = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
@@ -195,8 +221,12 @@ export function updateMessage(
 }
 
 export function updateInfo(): void {
-  scoreEl.textContent = gameState.score.toString()
-  turnEl.textContent = gameState.turn.toString()
+  // オーバーレイ上の新しい要素のみを更新する
+  const boardScoreEl = document.getElementById('board-score')
+  const boardTurnEl = document.getElementById('board-turn')
+
+  if (boardScoreEl) boardScoreEl.textContent = gameState.score.toString()
+  if (boardTurnEl) boardTurnEl.textContent = gameState.turn.toString()
 }
 
 export function canPlaceTrapAt(hexPos: AxialCoord, _trapType: ItemType): boolean {

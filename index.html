@@ -9,7 +9,7 @@
   <body>
     <div class="game-container">
       <h1>Chase＆Hide</h1>
-      <div class="game-info">
+      <div class="game-info is-hidden">
         <div class="info-box">スコア: <span id="score">0</span></div>
         <div class="info-box">ターン: <span id="turn">1</span></div>
       </div>
@@ -17,9 +17,7 @@
       <div id="game-board"></div>
 
       <div id="message-area" class="message-area">あなたのターンです。</div>
-
       <div id="inventory-area" class="inventory-area"></div>
-
       <div class="game-controls">
         <button id="restart-button">ゲームをリセット</button>
         <div>
@@ -41,7 +39,6 @@
         </div>
       </div>
     </div>
-
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

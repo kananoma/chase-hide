@@ -71,5 +71,5 @@ export interface GameState {
   minSpawnDistanceFromOtherMobs: number
   maxItemsOnBoard: number
   minItemSpawnDistanceFromPlayer: number
-  maxMobCapacity?: number
+  maxMobCapacity: number
 }
