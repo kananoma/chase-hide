@@ -1,15 +1,15 @@
-import { calculateAndVisualizeDanger, clearDangerVisualization } from './danger'
+import { calculateAndVisualizeDanger, clearDangerVisualization, lastDangerMap } from './danger'
 import {
   CLOAK_DURATION,
   CLOAK_EVASION_CHANCE,
   ITEM_SPAWN_CHANCE,
+  MAX_SPAWN_CHANCE,
+  MIN_SPAWN_CHANCE,
   MOB_LEVEL_SPAWN_PARAMS,
   MOB_SPAWN_CHANCE_PER_TURN,
   MOB_STATS,
   SNARE_TRAP_DURATION,
   SNARE_TRAP_STUN_TURNS,
-  MIN_SPAWN_CHANCE,
-  MAX_SPAWN_CHANCE,
 } from './constants'
 import { gameState } from './state'
 import {
@@ -242,39 +242,80 @@ export function spawnNewMob(isInitial: boolean = false): void {
   gameState.itemsOnBoard.forEach((i) => occupiedKeys.add(`${i.pos.q},${i.pos.r}`))
   gameState.trapsOnBoard.forEach((t) => occupiedKeys.add(`${t.pos.q},${t.pos.r}`))
 
-  let allEmptyHexes = Array.from(gameState.grid.keys()).filter((k) => !occupiedKeys.has(k))
-  let candidateLocations = allEmptyHexes.filter((key) => {
-    const [q, r] = key.split(',').map(Number)
-    return Axial.distance(gameState.player.pos, { q, r }) >= gameState.minSpawnDistance
+  let candidateHexes = Array.from(gameState.grid.values()).filter((hex) => {
+    // 占有されておらず、かつプレイヤーから一定距離離れている
+    const isOccupied = occupiedKeys.has(`${hex.q},${hex.r}`)
+    const isFarEnough = Axial.distance(gameState.player.pos, hex) >= gameState.minSpawnDistance
+    return !isOccupied && isFarEnough
   })
+  // もし十分に離れた適切なマスがなければ、占有されていないすべてのマスを候補にする
+  if (candidateHexes.length === 0) {
+    candidateHexes = Array.from(gameState.grid.values()).filter((hex) => !occupiedKeys.has(`${hex.q},${hex.r}`))
+  }
+  if (candidateHexes.length === 0) return
 
-  if (candidateLocations.length > 0) {
-    const furtherFiltered = candidateLocations.filter((key) => {
-      const [q, r] = key.split(',').map(Number)
-      const newMobPos = { q, r }
-      return gameState.mobs.every(
-        (existingMob) => Axial.distance(existingMob.pos, newMobPos) >= gameState.minSpawnDistanceFromOtherMobs
-      )
+  let finalCandidateLocation: AxialCoord | undefined = undefined
+
+  if (isInitial || lastDangerMap.size === 0) {
+    // 初期スポーン時、または危険度マップが未計算の場合は、従来通りプレイヤーから遠い場所を選ぶ
+    let initialCandidates = candidateHexes.filter(
+      (hex) => Axial.distance(gameState.player.pos, hex) >= gameState.minSpawnDistance
+    )
+    if (initialCandidates.length === 0) initialCandidates = candidateHexes
+
+    finalCandidateLocation = initialCandidates[Math.floor(Math.random() * initialCandidates.length)]
+  } else {
+    // 通常スポーン時は危険度に基づいて場所を決定
+    let maxDanger = 0
+    lastDangerMap.forEach((danger) => {
+      if (danger > maxDanger) maxDanger = danger
     })
-    if (furtherFiltered.length > 0) candidateLocations = furtherFiltered
-  } else if (allEmptyHexes.length > 0) {
-    candidateLocations = allEmptyHexes
+    maxDanger += 1 // 最も危険なマスでも最低1の重みを持つように
+
+    const weightedCandidates: { hex: AxialCoord; weight: number }[] = []
+    let totalWeight = 0
+
+    for (const hex of candidateHexes) {
+      const key = `${hex.q},${hex.r}`
+      const danger = lastDangerMap.get(key) || 0
+      const weight = maxDanger - danger
+
+      weightedCandidates.push({ hex, weight })
+      totalWeight += weight
+    }
+
+    if (totalWeight > 0) {
+      let randomValue = Math.random() * totalWeight
+      for (const candidate of weightedCandidates) {
+        if (randomValue < candidate.weight) {
+          finalCandidateLocation = candidate.hex
+          break
+        }
+        randomValue -= candidate.weight
+      }
+    }
+
+    // フォールバック: 重み計算の結果などで選ばれなかった場合
+    if (!finalCandidateLocation) {
+      finalCandidateLocation = candidateHexes[Math.floor(Math.random() * candidateHexes.length)]
+    }
   }
 
-  if (candidateLocations.length === 0) return
+  // finalCandidateLocationがundefinedでないことを保証
+  if (!finalCandidateLocation) return
 
   const mobLevel = isInitial ? 1 : getWeightedRandomLevel(gameState.score)
-  const mobKey = candidateLocations[Math.floor(Math.random() * candidateLocations.length)]
-  const [q, r] = mobKey.split(',').map(Number)
   const newMob: Mob = {
     id: `mob-${gameState.nextMobId++}`,
-    pos: { q, r },
+    pos: { q: finalCandidateLocation.q, r: finalCandidateLocation.r },
     el: null,
     level: mobLevel,
     stunnedTurns: 0,
   }
   gameState.mobs.push(newMob)
-  if (!isInitial) createOrUpdatePiece(newMob, 'mob')
+  if (!isInitial) {
+    createOrUpdatePiece(newMob, 'mob')
+  }
 }
 
 function spawnItem(): void {
@@ -311,8 +352,10 @@ function endPlayerTurn(): void {
   updateMessage('モンスターのターン...')
   updateHighlights()
   clearDetectionHighlights()
-  // 危険度ヒートマップをクリア
-  clearDangerVisualization()
+  // 危険度表示がONの場合のみヒートマップをクリア
+  if (gameState.isDangerVisible) {
+    clearDangerVisualization()
+  }
   setTimeout(mobsTurn, 500)
 }
 
@@ -406,25 +449,21 @@ function mobsTurn(): void {
     spawnItem()
 
     const mobCount = gameState.mobs.length
-    const totalHexes = gameState.totalHexes ?? 1 // totalHexes が未定義なら 1 を使う
+    const totalHexes = gameState.totalHexes ?? 1
     const maxCapacity = gameState.maxMobCapacity || Math.max(5, Math.floor(gameState.gridRadius * 2))
     const occupancyRate = Math.min(1.0, mobCount / maxCapacity)
     const exponent = 2
-    let dynamicSpawnChance = MOB_SPAWN_CHANCE_PER_TURN * Math.pow(1 - occupancyRate, exponent)
-
-    // 最終的なスポーン確率を計算
+    const dynamicSpawnChance = MOB_SPAWN_CHANCE_PER_TURN * Math.pow(1 - occupancyRate, exponent)
     const finalSpawnChance = Math.max(MIN_SPAWN_CHANCE, Math.min(MAX_SPAWN_CHANCE, dynamicSpawnChance))
 
-    // 計算した最終確率でスポーン判定を行う
     if (Math.random() < finalSpawnChance) {
       spawnNewMob()
     }
 
     let trapMessages: string[] = []
     gameState.trapsOnBoard = gameState.trapsOnBoard.filter((trap) => {
-      if (trap.triggered) return false // 発動済みのトラップは常に除去
+      if (trap.triggered) return false
 
-      // 時間制限があるトラップ（turnsLeftが0以上）の場合のみ、ターン数を減らす
       if (trap.turnsLeft > 0) {
         trap.turnsLeft--
         if (trap.turnsLeft <= 0) {
@@ -432,10 +471,9 @@ function mobsTurn(): void {
             gameBoard.removeChild(trap.el)
           }
           trapMessages.push(`トラップの効果が切れた。`)
-          return false // 配列から削除
+          return false
         }
       }
-      // 永続トラップ（turnsLeftが-1）の場合や、まだ持続中の時間制限トラップは残す
       return true
     })
 
@@ -446,11 +484,9 @@ function mobsTurn(): void {
     updateInventoryUI()
     updateHighlights()
 
-    // デバッグ情報出力のコード
-    console.log(`--- Turn ${gameState.turn - 1} End ---`) // これから始まるターンではなく、終了したターンとして表示
+    console.log(`--- Turn ${gameState.turn - 1} End ---`)
     console.log(`Score: ${gameState.score}`)
     console.log(`Mob Count: ${mobCount} / ${maxCapacity} (${(occupancyRate * 100).toFixed(1)}%)`)
-    // 敵が0体の場合のゼロ除算を避ける
     if (mobCount > 0) {
       console.log(`Current Mob Density: 1体あたり約 ${(totalHexes / mobCount).toFixed(1)} マス`)
     } else {
@@ -467,7 +503,6 @@ function mobsTurn(): void {
     }
     updateMessage(turnEndMessage.trim())
 
-    // 危険度を計算して可視化
     calculateAndVisualizeDanger()
   }
 }

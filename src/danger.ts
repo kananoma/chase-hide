@@ -3,7 +3,7 @@ import { MOB_STATS } from './constants'
 import { Axial } from './utils'
 
 // 計算された危険度マップを保持する変数
-let lastDangerMap: Map<string, number> = new Map()
+export let lastDangerMap: Map<string, number> = new Map()
 
 /**
  * 盤面全体の危険度を計算し、ヒートマップとして可視化するメイン関数
