@@ -65,6 +65,7 @@ export interface GameState {
   nextItemId: number
   nextTrapId: number
   isPlacingTrap: ItemType | null
+  isDangerVisible: boolean
   initialMobs: number
   minSpawnDistance: number
   minSpawnDistanceFromOtherMobs: number

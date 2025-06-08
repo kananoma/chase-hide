@@ -1,3 +1,4 @@
+import { calculateAndVisualizeDanger, clearDangerVisualization } from './danger'
 import {
   CLOAK_DURATION,
   CLOAK_EVASION_CHANCE,
@@ -310,6 +311,8 @@ function endPlayerTurn(): void {
   updateMessage('モンスターのターン...')
   updateHighlights()
   clearDetectionHighlights()
+  // 危険度ヒートマップをクリア
+  clearDangerVisualization()
   setTimeout(mobsTurn, 500)
 }
 
@@ -463,5 +466,8 @@ function mobsTurn(): void {
       turnEndMessage += ' あなたのターンです。移動したいマスを選択してください。'
     }
     updateMessage(turnEndMessage.trim())
+
+    // 危険度を計算して可視化
+    calculateAndVisualizeDanger()
   }
 }

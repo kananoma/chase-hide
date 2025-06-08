@@ -1,7 +1,16 @@
 import { spawnNewMob } from './game'
-import { setGameState } from './state'
+import { setGameState, gameState } from './state'
 // initializeContainerObserver をインポートリストから削除
-import { drawBoard, mapSizeSelector, restartButton, updateInfo, updateInventoryUI, updateMessage } from './ui'
+import {
+  drawBoard,
+  mapSizeSelector,
+  restartButton,
+  updateInfo,
+  updateInventoryUI,
+  updateMessage,
+  dangerToggle,
+} from './ui'
+import { clearDangerVisualization, calculateAndVisualizeDanger } from './danger'
 import type { GameState, HexData } from './types'
 import { HEXES_PER_ITEM, HEXES_PER_INITIAL_MOB, HEXES_PER_MAX_MOB } from './constants'
 
@@ -49,6 +58,7 @@ function initGame(selectedRadius: number): void {
     maxItemsOnBoard: maxItemsOnBoard, // 計算済みの値を使用
     minItemSpawnDistanceFromPlayer: minItemSpawnDistanceFromPlayer, // 計算済みの値を使用
     maxMobCapacity: maxMobCapacity, // 計算済みの値を使用
+    isDangerVisible: false,
   }
 
   // グローバルなgameStateを更新
@@ -107,15 +117,30 @@ function initGame(selectedRadius: number): void {
   // 描画処理
   function drawBoardWhenReady() {
     const currentHexSizeStyle = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hex-size'))
+
     if (Math.abs(currentHexSizeStyle - newHexSize) < 0.1) {
+      // スタイルが適用されたら描画を開始
       drawBoard()
       updateInfo()
       updateInventoryUI()
       updateMessage('あなたのターンです。移動したいマスを選択してください。')
+
+      // ゲームの初期状態をトグルスイッチのUIに反映させる
+      dangerToggle.checked = initialState.isDangerVisible
+
+      // もし初期状態で危険度表示がONなら、最初のヒートマップを表示する
+      if (initialState.isDangerVisible) {
+        calculateAndVisualizeDanger()
+      } else {
+        clearDangerVisualization()
+      }
     } else {
+      // スタイルがまだ適用されていなければ、次のフレームで再試行
       requestAnimationFrame(drawBoardWhenReady)
     }
   }
+
+  // 最初のフレームで描画処理を開始
   requestAnimationFrame(drawBoardWhenReady)
 }
 
@@ -124,6 +149,16 @@ function initGame(selectedRadius: number): void {
 restartButton.addEventListener('click', () => {
   const selectedRadius = parseInt(mapSizeSelector.value, 10)
   requestAnimationFrame(() => initGame(selectedRadius))
+})
+
+dangerToggle.addEventListener('change', () => {
+  gameState.isDangerVisible = dangerToggle.checked
+  // トグルの状態が変わったら、すぐにヒートマップの表示/非表示を更新する
+  if (gameState.isDangerVisible) {
+    calculateAndVisualizeDanger() // ONになったら表示
+  } else {
+    clearDangerVisualization() // OFFになったら消去
+  }
 })
 
 // initializeContainerObserver() の呼び出しを削除
