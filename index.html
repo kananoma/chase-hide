@@ -7,38 +7,8 @@
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
-    <div class="game-container">
-      <!-- <h1>Chase＆Hide</h1> -->
-      <div class="game-info is-hidden">
-        <div class="info-box">スコア: <span id="score">0</span></div>
-        <div class="info-box">ターン: <span id="turn">1</span></div>
-      </div>
+    <div id="root"></div>
 
-      <div id="game-board"></div>
-
-      <div id="message-area" class="message-area">あなたのターンです。</div>
-      <div id="inventory-area" class="inventory-area"></div>
-      <div class="game-controls">
-        <button id="restart-button">ゲームをリセット</button>
-        <div>
-          <label for="map-size-selector">マップサイズ (半径): </label>
-          <select id="map-size-selector">
-            <option value="3">極小 (3)</option>
-            <option value="4">小 (4)</option>
-            <option value="5" selected>中 (5)</option>
-            <option value="6">大 (6)</option>
-            <option value="7">特大 (7)</option>
-            <option value="8">巨大 (8)</option>
-            <option value="9">超巨大 (9)</option>
-          </select>
-        </div>
-        <div class="toggle-switch">
-          <input type="checkbox" id="danger-toggle" class="toggle-input" />
-          <label for="danger-toggle" class="toggle-label"></label>
-          <span>危険度表示</span>
-        </div>
-      </div>
-    </div>
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

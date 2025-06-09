@@ -157,20 +157,18 @@ h1 {
 }
 .piece {
   position: absolute;
-  top: 0;
-  left: 0;
   border-radius: 50%;
-  opacity: 0;
-  transform: scale(0);
-  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out;
+  /* opacity: 0; */
+  /* transform: scale(0); */
+  /* transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease-out; */
   z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.piece.is-visible {
+/* .piece.is-visible {
   opacity: 1;
-}
+} */
 .player {
   background-color: var(--player-color);
   box-shadow: 0 0 10px var(--player-color);
@@ -290,4 +288,20 @@ button:disabled {
 }
 .is-hidden {
   display: none !important;
+}
+.game-over-message {
+  position: absolute;
+  top: 40%; /* 画面の少し上寄りに調整 */
+  left: 50%;
+  transform: translate(-50%, -50%);
+  padding: 20px 40px;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  font-size: 2.5em;
+  font-weight: bold;
+  text-align: center;
+  border-radius: 12px;
+  text-shadow: 2px 2px 4px black;
+  z-index: 100; /* 全ての要素より手前に表示 */
+  line-height: 1.5; /* 行間を調整 */
 }
