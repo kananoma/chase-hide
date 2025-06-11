@@ -33,13 +33,25 @@
 
   /* --- ゲームピース関連 (変更不要とされていた部分) --- */
 
-  .hex {
-    @apply absolute bg-hex-bg transition-all duration-200 cursor-pointer z-[1] hover:scale-105 hover:z-[2];
-    /* width/heightとclip-pathはCSS変数に依存するため、ここに記述します */
-    width: calc(var(--hex-size) * 2);
-    height: calc(var(--hex-size) * 2 * 0.866);
-    clip-path: polygon(25% 0%, 75% 0%, 100% 50%, 75% 100%, 25% 100%, 0% 50%);
+  .hex-wrapper {
+    /* サイズは GameBoard.tsx の style 属性で設定されます */
+    box-sizing: border-box;
+    /* ホバーエフェクトと重ね順の制御 */
+    @apply transition-all duration-200 z-[1] hover:scale-105 hover:z-[2];
   }
+
+  .hex {
+    /* Tailwind CSS utilities */
+    @apply cursor-pointer; /* 背景色はSVGのfillで指定 */
+    /* .hex-wrapper の padding の内側に配置されるように 100% */
+    /* width と height は style 属性で 100% に設定済み */
+    /* clip-path は不要 */
+    /* box-sizing はSVG要素には直接影響しないことが多いが、念のため残しても良い */
+
+    /* SVGのfillで使用する色をCSS変数で定義 (tailwind.config.js の hex-bg と合わせる) */
+    --hex-bg-color: theme('colors.hex-bg', white);
+  }
+
   .hex.highlight {
     background-color: var(--highlight-color); /* Tailwindのrgbaクラスでも可 bg-blue-500/30 */
   }

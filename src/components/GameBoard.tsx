@@ -95,8 +95,16 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, dispatch }) => 
       {Array.from(gameState.grid.values()).map((hexData) => {
         const key = `${hexData.q},${hexData.r}`
         const position = boardLayout.hexPositions.get(key)
+        // hex-wrapper のためのスタイル。サイズはCSS変数から取得します。
+        const wrapperStyle = {
+          position: 'absolute' as const,
+          top: `${position?.top}px`,
+          left: `${position?.left}px`,
+          width: `calc(var(--hex-size) * 2)`,
+          height: `calc(var(--hex-size) * 2 * 0.866)`,
+        }
         return (
-          <div key={key} style={{ position: 'absolute', top: `${position?.top}px`, left: `${position?.left}px` }}>
+          <div key={key} className="hex-wrapper" style={wrapperStyle}>
             <Hex hexData={hexData} dispatch={dispatch} gameState={gameState} />
           </div>
         )
