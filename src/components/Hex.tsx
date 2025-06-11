@@ -20,12 +20,15 @@ export const Hex: React.FC<HexProps> = ({ hexData, dispatch, gameState }) => {
     }
   }
 
-  // CSS変数 --hex-size の値 (例: 40) に基づいて計算
-  // GameBoard.tsx の hexSize と合わせる必要があります。
-  // 本来は props で渡すか、CSS変数から動的に取得するのが望ましいです。
-  const hexSize = 40 // この値は var(--hex-size) と一致させる
-  const svgWidth = hexSize * 2
-  const svgHeight = hexSize * Math.sqrt(3)
+  // SVGのviewBoxとポリゴンポイントの基準寸法を定義します。
+  // これは六角形の内部座標系の基本単位として機能します。
+  // 実際の表示サイズは、親コンテナのCSS（通常var(--hex-size)を使用）と
+  // SVGのstyle={{ width: '100%', height: '100%' }}によって決定されます。
+  // この内部的な 'canonicalRadius' はCSSから動的に取得する必要はなく、
+  // viewBoxの比率を定義するだけの値です。
+  const canonicalRadius = 40 // 内部計算用の基準半径
+  const svgWidth = canonicalRadius * 2
+  const svgHeight = canonicalRadius * Math.sqrt(3)
 
   // 六角形の頂点座標を計算 (SVGのviewBox内)
   //   P1 -- P2
@@ -34,11 +37,11 @@ export const Hex: React.FC<HexProps> = ({ hexData, dispatch, gameState }) => {
   //  \        /
   //   P5 -- P4
   const points = [
-    `${hexSize * 0.5},0`, // P1
-    `${hexSize * 1.5},0`, // P2
-    `${hexSize * 2},${svgHeight / 2}`, // P3
-    `${hexSize * 1.5},${svgHeight}`, // P4
-    `${hexSize * 0.5},${svgHeight}`, // P5
+    `${canonicalRadius * 0.5},0`, // P1
+    `${canonicalRadius * 1.5},0`, // P2
+    `${canonicalRadius * 2},${svgHeight / 2}`, // P3
+    `${canonicalRadius * 1.5},${svgHeight}`, // P4
+    `${canonicalRadius * 0.5},${svgHeight}`, // P5
     `0,${svgHeight / 2}`, // P6
   ].join(' ')
 
@@ -49,7 +52,10 @@ export const Hex: React.FC<HexProps> = ({ hexData, dispatch, gameState }) => {
       onClick={handleClick}
       style={{ width: '100%', height: '100%' }}
     >
-      <polygon points={points} fill="var(--hex-bg-color, white)" stroke="gray" strokeWidth="1" />
+      <polygon
+        points={points}
+        className="hex-polygon" // スタイル (fill, stroke, stroke-width) はCSSで管理
+      />
     </svg>
   )
 }

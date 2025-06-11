@@ -9,6 +9,9 @@
 */
 :root {
   --hex-size: 40px;
+  --hex-bg-color: #f0f0f0;
+  --hex-stroke-color: #333;
+  --hex-stroke-width: 0.4px;
 }
 
 @layer base {
@@ -50,6 +53,14 @@
 
     /* SVGのfillで使用する色をCSS変数で定義 (tailwind.config.js の hex-bg と合わせる) */
     --hex-bg-color: theme('colors.hex-bg', white);
+    display: block; /* SVGがスペースを埋めるようにする */
+    cursor: pointer; /* すべてのhexがインタラクティブである場合 */
+  }
+
+  .hex-polygon {
+    fill: var(--hex-bg-color, white); /* CSS変数で塗りつぶし色を指定 (既存の動作を維持) */
+    stroke: var(--hex-stroke-color, gray); /* CSS変数で線の色を指定 (デフォルトはgray) */
+    stroke-width: var(--hex-stroke-width, 1px); /* CSS変数で線の太さを指定 (デフォルトは1px) */
   }
 
   .hex.highlight {
