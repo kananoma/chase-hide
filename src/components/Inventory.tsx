@@ -14,7 +14,10 @@ export const Inventory: React.FC<InventoryProps> = ({ gameState, dispatch }) => 
   }
 
   return (
-    <div id="inventory-area" className="inventory-area">
+    <div
+      id="inventory-area"
+      className="w-full max-w-4xl flex flex-wrap justify-center gap-[15px] p-2.5 bg-gray-100 rounded-lg"
+    >
       {gameState.player.inventory.map((item) => {
         // ★★★ ボタンを無効化する条件を計算 ★★★
         let isDisabled = gameState.isGameOver || !gameState.isPlayerTurn || item.quantity <= 0
@@ -31,7 +34,7 @@ export const Inventory: React.FC<InventoryProps> = ({ gameState, dispatch }) => 
             className="inventory-item-container"
             style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
           >
-            <div className="inventory-item">
+            <div className="inventory-item inventory-item font-medium flex items-center">
               <span className="item-icon">{item.icon}</span>
               <span>
                 {item.name}: {item.quantity}個
@@ -40,7 +43,11 @@ export const Inventory: React.FC<InventoryProps> = ({ gameState, dispatch }) => 
                 <span> (効果中: 残り{gameState.player.cloakTurnsLeft}ターン)</span>
               )}
             </div>
-            <button onClick={() => handleUseItem(item.type)} disabled={isDisabled}>
+            <button
+              className="bg-player text-white border-none py-3 px-6 rounded-lg text-base cursor-pointer transition-all duration-200 shadow-md hover:bg-player-hover hover:-translate-y-0.5 disabled:bg-disabled-bg disabled:text-disabled-text disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
+              onClick={() => handleUseItem(item.type)}
+              disabled={isDisabled}
+            >
               {item.type === 'snare_trap' ? '設置' : '使用'}
             </button>
           </div>

@@ -61,30 +61,37 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, dispatch }) => 
     }
   }, [gameState.gridRadius])
 
-  const getPieceStyle = (pos: AxialCoord, pieceSize: number): React.CSSProperties => {
+  // Tailwind CSS を使用するために、クラス名とスタイルオブジェクトを返すように変更
+  const getPieceProps = (pos: AxialCoord, pieceSize: number): { className: string; style: React.CSSProperties } => {
     const key = `${pos.q},${pos.r}`
     const hexPos = boardLayout.hexPositions.get(key)
-    if (!hexPos) return { display: 'none' }
+    if (!hexPos) {
+      return { className: 'hidden', style: {} } // 表示しない場合は 'hidden' クラスを返す
+    }
 
     return {
-      position: 'absolute',
-      top: `${hexPos.top + boardLayout.hexFullHeight / 2 - pieceSize / 2}px`,
-      left: `${hexPos.left + boardLayout.hexFullWidth / 2 - pieceSize / 2}px`,
-      transition: 'top 0.1s ease-in-out, left 0.1s ease-in-out',
+      className: 'absolute transition-all duration-100 ease-in-out', // Tailwind CSS のクラス
+      style: {
+        // top と left は動的に計算されるため、style属性で指定
+        top: `${hexPos.top + boardLayout.hexFullHeight / 2 - pieceSize / 2}px`,
+        left: `${hexPos.left + boardLayout.hexFullWidth / 2 - pieceSize / 2}px`,
+      },
     }
   }
 
   return (
-    <div id="game-board" style={boardLayout.boardStyle}>
-      <div id="board-overlay">
-        <div className="board-info board-info-score">
+    // boardLayout.boardStyle も Tailwind で表現可能なら置き換えることを検討
+    <div id="game-board" className="relative bg-board-bg rounded-xl overflow-hidden" style={boardLayout.boardStyle}>
+      {' '}
+      {/* 親要素に relative が必要 */}
+      <div id="board-overlay absolute inset-0 p-4 px-6 box-border pointer-events-none z-10">
+        <div className="board-info board-info absolute top-4 left-6 ">
           スコア: <span>{gameState.score}</span>
         </div>
-        <div className="board-info board-info-turn">
+        <div className="board-info board-info absolute top-4 right-6">
           ターン: <span>{gameState.turn}</span>
         </div>
       </div>
-
       {Array.from(gameState.grid.values()).map((hexData) => {
         const key = `${hexData.q},${hexData.r}`
         const position = boardLayout.hexPositions.get(key)
@@ -94,28 +101,39 @@ export const GameBoard: React.FC<GameBoardProps> = ({ gameState, dispatch }) => 
           </div>
         )
       })}
-
       {/* --- ピースの描画 --- */}
-      <div style={getPieceStyle(gameState.player.pos, 32)}>
-        <PlayerPiece />
-      </div>
-      {gameState.mobs.map((mob) => (
-        <div key={mob.id} style={getPieceStyle(mob.pos, 32)}>
-          <MobPiece mobData={mob} />
-        </div>
-      ))}
-      {/* ★★★ ここからが追加箇所 ★★★ */}
-      {gameState.itemsOnBoard.map((item) => (
-        <div key={item.id} style={getPieceStyle(item.pos, 28)}>
-          <ItemPiece itemData={item} />
-        </div>
-      ))}
-      {gameState.trapsOnBoard.map((trap) => (
-        <div key={trap.id} style={getPieceStyle(trap.pos, 28)}>
-          <TrapPiece />
-        </div>
-      ))}
-      {/* ★★★ ここまでが追加箇所 ★★★ */}
+      {(() => {
+        const { className, style } = getPieceProps(gameState.player.pos, 32)
+        return (
+          <div className={className} style={style}>
+            <PlayerPiece />
+          </div>
+        )
+      })()}
+      {gameState.mobs.map((mob) => {
+        const { className, style } = getPieceProps(mob.pos, 32)
+        return (
+          <div key={mob.id} className={className} style={style}>
+            <MobPiece mobData={mob} />
+          </div>
+        )
+      })}
+      {gameState.itemsOnBoard.map((item) => {
+        const { className, style } = getPieceProps(item.pos, 28)
+        return (
+          <div key={item.id} className={className} style={style}>
+            <ItemPiece itemData={item} />
+          </div>
+        )
+      })}
+      {gameState.trapsOnBoard.map((trap) => {
+        const { className, style } = getPieceProps(trap.pos, 28)
+        return (
+          <div key={trap.id} className={className} style={style}>
+            <TrapPiece />
+          </div>
+        )
+      })}
     </div>
   )
 }

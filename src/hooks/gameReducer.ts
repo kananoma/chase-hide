@@ -96,6 +96,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return createInitialState(action.payload.radius)
 
     case 'TOGGLE_DANGER_VISIBILITY':
+      console.log(
+        `%cToggling isDangerVisible from ${state.isDangerVisible} to ${!state.isDangerVisible}`,
+        'color: green;'
+      )
       return { ...state, isDangerVisible: !state.isDangerVisible }
 
     case 'PLACE_TRAP': {

@@ -14,7 +14,7 @@ interface GameProps {
 export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
   // DOM要素を直接参照するためのuseRefフック
   const mapSizeSelectorRef = useRef<HTMLSelectElement>(null)
-  const dangerToggleRef = useRef<HTMLInputElement>(null)
+  // const dangerToggleRef = useRef<HTMLInputElement>(null) // 制御されたコンポーネントにするため削除
 
   // --- イベントハンドラ ---
 
@@ -26,6 +26,7 @@ export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
   }
 
   const handleToggleDanger = () => {
+    console.log('handleToggleDanger called. Current isDangerVisible:', gameState.isDangerVisible)
     dispatch({ type: 'TOGGLE_DANGER_VISIBILITY' })
   }
 
@@ -36,10 +37,7 @@ export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
     if (mapSizeSelectorRef.current) {
       mapSizeSelectorRef.current.value = String(gameState.gridRadius)
     }
-    if (dangerToggleRef.current) {
-      dangerToggleRef.current.checked = gameState.isDangerVisible
-    }
-  }, [gameState.gridRadius, gameState.isDangerVisible])
+  }, [gameState.gridRadius]) // gameState.isDangerVisible の依存を削除
 
   useEffect(() => {
     if (gameState.isGameOver || gameState.isPlayerTurn) {
@@ -56,7 +54,7 @@ export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
   // --- レンダリング ---
 
   return (
-    <div className="game-container">
+    <div className="game-container inline-flex flex-col items-center gap-3 p-5 bg-white rounded-2xl shadow-main">
       {/* ★★★ ここからが修正箇所 ★★★ */}
       {/* isGameOverがtrueの時だけ、ゲームオーバーメッセージを表示する */}
       {gameState.isGameOver && (
@@ -68,19 +66,26 @@ export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
       )}
       {/* ★★★ ここまでが修正箇所 ★★★ */}
 
-      <h1>Chase＆Hide</h1>
+      <h1 className="w-full max-w-4xl text-center mb-2 text-2xl font-bold">Chase＆Hide</h1>
 
       <GameBoard gameState={gameState} dispatch={dispatch} />
 
-      <div id="message-area" className="message-area">
+      <div
+        id="message-area"
+        className="w-full max-w-4xl h-auto leading-tight text-base text-gray-600 font-medium text-center p-2 border border-gray-300 rounded bg-gray-200"
+      >
         {/* TODO: メッセージもgameStateから受け取る */}
         あなたのターンです。
       </div>
 
       <Inventory gameState={gameState} dispatch={dispatch} />
 
-      <div className="game-controls">
-        <button id="restart-button" onClick={handleRestart}>
+      <div className="game-controls w-full max-w-4xl flex flex-wrap justify-center items-center gap-5">
+        <button
+          id="restart-button"
+          className="bg-player text-white border-none py-3 px-6 rounded-lg text-base cursor-pointer transition-all duration-200 shadow-md hover:bg-player-hover hover:-translate-y-0.5 disabled:bg-disabled-bg disabled:text-disabled-text disabled:cursor-not-allowed disabled:shadow-none disabled:transform-none"
+          onClick={handleRestart}
+        >
           ゲームをリセット
         </button>
         <div>
@@ -95,10 +100,23 @@ export const Game: React.FC<GameProps> = ({ gameState, dispatch }) => {
             <option value="9">超巨大 (9)</option>
           </select>
         </div>
-        <div className="toggle-switch">
-          <input type="checkbox" id="danger-toggle" ref={dangerToggleRef} onChange={handleToggleDanger} />
-          <label htmlFor="danger-toggle" className="toggle-label"></label>
-          <span>危険度表示</span>
+        {/* Tailwind CSS を使用したトグルスイッチ */}
+        <div className="flex items-center">
+          {/* labelを全体のコンテナにする */}
+          <label htmlFor="danger-toggle" className="relative inline-flex items-center cursor-pointer">
+            {/* input（peer）をlabelの中に入れる */}
+            <input
+              type="checkbox"
+              id="danger-toggle"
+              checked={gameState.isDangerVisible}
+              onChange={handleToggleDanger}
+              className="sr-only peer"
+            />
+            {/* スタイルを適用したいdivもlabelの中に入れ、inputの兄弟にする */}
+            <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            {/* ラベルテキストもlabelの中に入れる */}
+            <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300">危険度表示</span>
+          </label>
         </div>
       </div>
     </div>
